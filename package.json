@@ -1,0 +1,7 @@
+{
+  "main":"server.js",
+  "dependencies": {
+    "fastify": "^5.4.0",
+    "sqlite3": "^5.1.7"
+  }
+}

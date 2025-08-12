@@ -62,6 +62,19 @@ db.serialize(() => {
         FOREIGN KEY (id_etiqueta) REFERENCES etiquetas(id)
     )`);
 
+  db.run(`
+    CREATE VIEW IF NOT EXISTS etapas_with_contactos AS SELECT 
+    c.nome AS nome_contato,
+    c.id AS id_contato,
+    c.telefone,
+    e.id,
+    e.nome,
+    e.ordem,
+    e.created_at
+    FROM contatos c
+    JOIN etapas e ON c.etapa_id = e.id;
+    `)
+
   db.run(`CREATE TABLE IF NOT EXISTS mensagens (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         conteudo TEXT NOT NULL,
@@ -97,7 +110,7 @@ db.serialize(() => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS projetos (
+    db.run(`CREATE TABLE IF NOT EXISTS projetos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
         importe REAL,
@@ -110,6 +123,101 @@ db.serialize(() => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    const popularDadosIniciais = async (quantidade = 5) => {
+    try {
+ 
+      await dbRun("DELETE FROM contatos");
+      await dbRun("DELETE FROM etapas");
+      await dbRun("DELETE FROM pipelines");
+      await dbRun("DELETE FROM etiquetas");
+
+      const pipelines = [
+        { nome: "Pipeline Comercial", descricao: "Processo de vendas" },
+        { nome: "Pipeline Suporte", descricao: "Processo de atendimento" },
+        { nome: "Pipeline Onboarding", descricao: "Processo de integração" },
+      ].slice(0, Math.min(3, quantidade));
+
+      for (const pipeline of pipelines) {
+        await dbRun(
+          "INSERT INTO pipelines (nome, descricao) VALUES (?, ?)",
+          [pipeline.nome, pipeline.descricao]
+        );
+      }
+
+      const etapasBase = [
+        { nome: "Contato inicial", ordem: 1 },
+        { nome: "Apresentação", ordem: 2 },
+        { nome: "Negociação", ordem: 3 },
+        { nome: "Fechamento", ordem: 4 },
+        { nome: "Pós-venda", ordem: 5 },
+      ];
+
+      const pipelineIds = await dbAll("SELECT id FROM pipelines");
+      for (const pipeline of pipelineIds) {
+        const etapasParaInserir = etapasBase.slice(0, quantidade);
+        for (const etapa of etapasParaInserir) {
+          await dbRun(
+            "INSERT INTO etapas (pipeline_id, nome, ordem) VALUES (?, ?, ?)",
+            [pipeline.id, etapa.nome, etapa.ordem]
+          );
+        }
+      }
+
+      const etiquetas = [
+        { nome: "Cliente Potencial", cor: "#FF5733" },
+        { nome: "Cliente Ativo", cor: "#33FF57" },
+        { nome: "Cliente Inativo", cor: "#3357FF" },
+        { nome: "Lead Quente", cor: "#F033FF" },
+        { nome: "Lead Frio", cor: "#33FFF0" },
+      ].slice(0, quantidade);
+
+      for (const etiqueta of etiquetas) {
+        await dbRun(
+          "INSERT INTO etiquetas (nome, cor) VALUES (?, ?)",
+          [etiqueta.nome, etiqueta.cor]
+        );
+      }
+
+      const nomesContatos = [
+        "João Silva", "Maria Oliveira", "Carlos Souza", "Ana Santos", 
+        "Pedro Costa", "Lucia Ferreira", "Marcos Rocha", "Julia Lima",
+        "Fernando Alves", "Patricia Gomes", "Ricardo Martins", "Camila Ribeiro",
+        "Gustavo Pereira", "Isabela Carvalho", "Roberto Nunes"
+      ].slice(0, quantidade * 3);
+
+      const etapas = await dbAll("SELECT id FROM etapas");
+      const etiquetaIds = await dbAll("SELECT id FROM etiquetas");
+
+      for (let i = 0; i < nomesContatos.length; i++) {
+        const etapa = etapas[i % etapas.length];
+        const etiqueta = etiquetaIds[i % etiquetaIds.length];
+        
+        await dbRun(
+          `INSERT INTO contatos (
+            nome, email, telefone, etapa_id, valor_negociacao, 
+            id_etiqueta, status, data_cadastro, confianca
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            nomesContatos[i],
+            `${nomesContatos[i].toLowerCase().replace(/\s/g, '.')}@exemplo.com`,
+            `(11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+            etapa.id,
+            (Math.random() * 10000).toFixed(2),
+            Math.random() > 0.3 ? etiqueta.id : null, 
+            Math.random() > 0.7 ? 'fechado' : 'aberto', 
+            new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+            Math.floor(Math.random() * 100)
+          ]
+        );
+      }
+
+      fastify.log.info(`Dados iniciais inseridos (quantidade: ${quantidade})`);
+    } catch (error) {
+      fastify.log.error("Erro ao popular dados iniciais:", error);
+    }
+  };
+  popularDadosIniciais(10);
+
 });
 
 function dbRun(query, params = []) {
@@ -242,6 +350,13 @@ fastify.register(
       if (result.changes === 0)
         return reply.code(404).send({ message: "Etapa não encontrada" });
       return { message: "Etapa excluída com sucesso" };
+    });
+    fastify.get("/with-contatos", async (request, reply) => {
+      return dbAll("SELECT * FROM etapas_with_contactos");
+    });
+
+    fastify.get("/:id/contatos", async (request, reply) => {
+      return dbAll("SELECT * FROM etapas_with_contactos WHERE id = ?", [request.params.id]);
     });
   },
   { prefix: "/api/etapas" }

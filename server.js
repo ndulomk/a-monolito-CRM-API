@@ -145,16 +145,16 @@ db.serialize(() => {
       quantidadeSchema.parse(quantidade);
 
       // Clear all tables
-      await Promise.all([
-        dbRun("DELETE FROM contatos"),
-        dbRun("DELETE FROM etapas"),
-        dbRun("DELETE FROM pipelines"),
-        dbRun("DELETE FROM etiquetas"),
-        dbRun("DELETE FROM mensagens"),
-        dbRun("DELETE FROM tarefas"),
-        dbRun("DELETE FROM metas"),
-        dbRun("DELETE FROM projetos"),
-      ]);
+      // await Promise.all([
+      //   dbRun("DELETE FROM contatos"),
+      //   dbRun("DELETE FROM etapas"),
+      //   dbRun("DELETE FROM pipelines"),
+      //   dbRun("DELETE FROM etiquetas"),
+      //   dbRun("DELETE FROM mensagens"),
+      //   dbRun("DELETE FROM tarefas"),
+      //   dbRun("DELETE FROM metas"),
+      //   dbRun("DELETE FROM projetos"),
+      // ]);
 
       // Pipelines
       const pipelines = [
@@ -600,7 +600,7 @@ fastify.register(
     });
 
     fastify.post("/:id/etapas", async (request, reply) => {
-      const data = etapaSchema.parse({ ...request.body, pipeline_id: request.params.id });
+      const data = etapaSchema.parse({ ...request.body, pipeline_id: Number(request.params.id) });
       const result = await dbRun(
         "INSERT INTO etapas (pipeline_id, nome, ordem) VALUES (?, ?, ?)",
         [data.pipeline_id, data.nome, data.ordem]

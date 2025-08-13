@@ -1,7 +1,8 @@
 {
-  "main":"server.js",
+  "main": "server.js",
   "dependencies": {
     "fastify": "^5.4.0",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "zod": "^4.0.17"
   }
 }

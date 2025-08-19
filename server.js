@@ -581,7 +581,7 @@ fastify.register(
       const data = pipelineSchema.parse(request.body);
       const result = await dbRun(
         "UPDATE pipelines SET nome = ?, descricao = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        [data.nome, data.descricao, request.params.id]
+        [data.nome, data.descricao, Number(request.params.id)]
       );
       if (result.changes === 0) {
         return reply.code(404).send({ message: "Pipeline não encontrado" });
@@ -848,6 +848,28 @@ fastify.register(
       );
       return mensagens;
     });
+
+    fastify.put("/suporte/listar/:empresa_id/:id", async (request, reply) => {
+      const { conteudo } = request.body;
+      const result = await dbRun(
+        "UPDATE mensagens SET conteudo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND empresa_id = ?",
+        [conteudo, request.params.id, request.params.empresa_id]
+      );
+      if (result.changes === 0)
+        return reply.code(404).send({ message: "Mensagem não encontrada" });
+      return { message: "Mensagem atualizada com sucesso" };
+    });
+
+    fastify.delete("/suporte/listar/:empresa_id/:id", async (request, reply) => {
+      const result = await dbRun(
+        "DELETE FROM mensagens WHERE id = ? AND empresa_id = ?",
+        [request.params.id, request.params.empresa_id]
+      );
+      if (result.changes === 0)
+        return reply.code(404).send({ message: "Mensagem não encontrada" });
+      return { message: "Mensagem excluída com sucesso" };
+    });
+
 
     fastify.put("/suporte/:id", async (request, reply) => {
       const { conteudo } = request.body;
